@@ -44,6 +44,21 @@ jobs:
           chmod 600 "$HOME/.oci/config"
           printf '%s' "${{ secrets.SSH_PUBLIC_KEY }}" | tr -d '\r' > "$HOME/.ssh/oracle_cloud_ssh_key.pub"
 
+      - name: DEBUG clave (temporal, sin exponer contenido sensible)
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          echo "Número de líneas del key.pem:"
+          wc -l "$HOME/.oci/key.pem"
+          echo "Primera línea:"
+          sed -n '1p' "$HOME/.oci/key.pem"
+          echo "Última línea:"
+          tail -n 1 "$HOME/.oci/key.pem"
+          echo "Longitud total en bytes:"
+          wc -c "$HOME/.oci/key.pem"
+          echo "Verificación openssl:"
+          openssl rsa -in "$HOME/.oci/key.pem" -check -noout 2>&1 || true
+          openssl pkey -in "$HOME/.oci/key.pem" -noout -text 2>&1 | head -n 3 || true
+
       - name: Reintentar creación de instancia
         if: steps.gate.outputs.skip == 'false'
         env:
