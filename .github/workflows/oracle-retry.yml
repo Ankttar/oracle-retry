@@ -47,17 +47,16 @@ jobs:
       - name: DEBUG clave (temporal, sin exponer contenido sensible)
         if: steps.gate.outputs.skip == 'false'
         run: |
-          echo "Número de líneas del key.pem:"
-          wc -l "$HOME/.oci/key.pem"
-          echo "Primera línea:"
-          sed -n '1p' "$HOME/.oci/key.pem"
-          echo "Última línea:"
-          tail -n 1 "$HOME/.oci/key.pem"
-          echo "Longitud total en bytes:"
-          wc -c "$HOME/.oci/key.pem"
-          echo "Verificación openssl:"
-          openssl rsa -in "$HOME/.oci/key.pem" -check -noout 2>&1 || true
-          openssl pkey -in "$HOME/.oci/key.pem" -noout -text 2>&1 | head -n 3 || true
+          echo "Primeros 3 bytes en hex (detecta BOM, ef bb bf = BOM UTF-8):"
+          head -c 3 "$HOME/.oci/key.pem" | od -An -tx1
+          echo "Longitud de cada línea:"
+          awk '{ print NR": "length($0)" caracteres" }' "$HOME/.oci/key.pem"
+          echo "Dump hexadecimal de la primera línea completa:"
+          sed -n '1p' "$HOME/.oci/key.pem" | od -An -c | head -5
+          echo "Dump hexadecimal de la última línea completa:"
+          tail -n 1 "$HOME/.oci/key.pem" | od -An -c | head -5
+          echo "Verificación openssl pkey:"
+          openssl pkey -in "$HOME/.oci/key.pem" -noout -text 2>&1 | head -n 5 || true
 
       - name: Reintentar creación de instancia
         if: steps.gate.outputs.skip == 'false'
