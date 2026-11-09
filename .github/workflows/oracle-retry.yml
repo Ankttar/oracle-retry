@@ -1,0 +1,61 @@
+name: Oracle Retry
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar si ya hay éxito
+        id: gate
+        run: |
+          if [ -f SUCCESS.md ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Instalar OCI CLI
+        if: steps.gate.outputs.skip == 'false'
+        run: pip install oci-cli
+
+      - name: Configurar credenciales OCI
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          mkdir -p "$HOME/.oci" "$HOME/.ssh"
+          printf '%s' "${{ secrets.OCI_PRIVATE_KEY }}" > "$HOME/.oci/key.pem"
+          chmod 600 "$HOME/.oci/key.pem"
+          cat > "$HOME/.oci/config" <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ secrets.OCI_REGION }}
+          key_file=$HOME/.oci/key.pem
+          EOF
+          printf '%s' "${{ secrets.SSH_PUBLIC_KEY }}" > "$HOME/.ssh/oracle_cloud_ssh_key.pub"
+
+      - name: Reintentar creación de instancia
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          OCI_COMPARTMENT_ID: ${{ secrets.OCI_TENANCY_OCID }}
+        run: bash oracle_retry.sh
+
+      - name: Guardar resultado si hubo éxito
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          if [ -f SUCCESS.md ]; then
+            git config user.name "oracle-retry-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add SUCCESS.md
+            git commit -m "Instancia creada" || echo "nada que commitear"
+            git push
+          fi
