@@ -31,7 +31,7 @@ jobs:
         if: steps.gate.outputs.skip == 'false'
         run: |
           mkdir -p "$HOME/.oci" "$HOME/.ssh"
-          printf '%s' "${{ secrets.OCI_PRIVATE_KEY }}" > "$HOME/.oci/key.pem"
+          printf '%s' "${{ secrets.OCI_PRIVATE_KEY }}" | tr -d '\r' > "$HOME/.oci/key.pem"
           chmod 600 "$HOME/.oci/key.pem"
           cat > "$HOME/.oci/config" <<EOF
           [DEFAULT]
@@ -41,7 +41,8 @@ jobs:
           region=${{ secrets.OCI_REGION }}
           key_file=$HOME/.oci/key.pem
           EOF
-          printf '%s' "${{ secrets.SSH_PUBLIC_KEY }}" > "$HOME/.ssh/oracle_cloud_ssh_key.pub"
+          chmod 600 "$HOME/.oci/config"
+          printf '%s' "${{ secrets.SSH_PUBLIC_KEY }}" | tr -d '\r' > "$HOME/.ssh/oracle_cloud_ssh_key.pub"
 
       - name: Reintentar creación de instancia
         if: steps.gate.outputs.skip == 'false'
